@@ -15,8 +15,8 @@ import threading
 import imutils
 import datetime
 from imutils.video import VideoStream
-from scipy.spatial import distance as dist
-from imutils import perspective
+from scipy.spatial import distance as dist #bueno, saber la distancia es vital para el buen entendimiento de los entendimientos.
+from imutils import perspective #la perspectiva es muy importante para percibir.
 import serial.tools
 import serial.tools.list_ports
 import sys
