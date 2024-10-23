@@ -471,7 +471,7 @@ grafica_thread.daemon = True
 #PID_thread.daemon = True
 
 # Inicializar la cámara
-vs = VideoStream(src=2).start()  # Tamano imagen 1280.0 x 720.0
+vs = VideoStream(src=3).start()  # Tamano imagen 1280.0 x 720.0
 time.sleep(2.0)
 # Variables para que funcione el entorno
 firstFrame = None
