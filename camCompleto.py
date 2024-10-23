@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import tkinter as tk
 from tkinter import *
-
 from PIL import Image, ImageTk
 import time
 import matplotlib.pyplot as plt
@@ -17,7 +16,7 @@ import datetime
 from imutils.video import VideoStream
 from scipy.spatial import distance as dist
 from imutils import perspective
-import serial.tools
+import serial.tools #Holaaaaa Alejandor 
 import serial.tools.list_ports
 import sys
 # Variables globales
