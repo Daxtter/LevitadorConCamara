@@ -40,9 +40,15 @@ hayComunicacion = False
 kp = 0
 ki = 0  # constantes
 kd = 0
+#Variables locas para el PID
 error = 0
 errorAcum = 0  # error
 errorAnt = 0
+tiempoActual=time.time() #Para el KD
+perido = 50#ms de espera
+contadorDePocoCambio = 0;
+errorAcumAnt = 0;
+
 Dist = 300  # distancia de pelota a techo
 distD = 150  # distancia deseada
 muestrasD = np.zeros(20)
@@ -159,15 +165,15 @@ def map_range(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
 
 def calcular_PID_funcion(Dist):
-    global error, errorAnt, errorAcum, distD, distP, hayComunicacion
+    global error, errorAnt, errorAcum, distD, distP, hayComunicacion, tiempoActual,perido,contadorDePocoCambio, errorAcumAnt
     #Si hay comunicacion quiere decir que ya hay comunicacion con el atmega
     #Si no hay entonces el programa todavia no se ah practicamente iniciado
-    if hayComunicacion:
+    if hayComunicacion and (time.time() > (tiempoActual+perido)):
         ingresarEnMuestras(Dist)
         distP = promedio()
         error = distP - distD
         P = kp * error
-        dt_error = (error - errorAnt)
+        dt_error = (error - errorAnt)#/perido #Todavia no estoy seguro que se deba dividir
         D = kd * dt_error
         errorAcum = errorAcum + error
         I = ki * errorAcum
@@ -186,20 +192,22 @@ def calcular_PID_funcion(Dist):
         # PWM, que es 0-65535
 
         # Windeup
-        if (errorAcum > 110000):
+        if (errorAcum > 170000):
             errorAcum = 1100000
         else:
-            if(errorAcum < -100000):
+            if(errorAcum < -150000):
                 errorAcum =-100000
             else:
-                #if (errorAcumAnt < (errorAcum + 1) & & errorAcumAnt > (errorAcum - 1)):
-                #    contador2 = contador2 + 1;
-                #    if (contador2 > 60):
-                #        errorAcum = 0
-                #else:
-                #contador2=0
+                # Se usa de 10 en 10 porque nuestro PID toma valores muy gradnes porque asi es nuestro PWM
+                if (errorAcumAnt < (errorAcum + 10) and errorAcumAnt > (errorAcum - 10)):
+                    contadorDePocoCambio = contadorDePocoCambio + 1
+                    if contadorDePocoCambio>60: # Aqui esta diciendo que si por mas de 60 contadores que es decor son 60 * 50ms = 3s
+                        errorAcum = 0           # Entonces significa que esta muy cerca de la referencia entonces se debe indicar a 0
+                else:
+                    contadorDePocoCambio=0
                 pass
-
+        errorAcumAnt = errorAcum
+        errorAnt = error;
         ser.write(BytesValue)
 
 
