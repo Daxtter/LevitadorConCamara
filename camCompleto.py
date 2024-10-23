@@ -27,7 +27,7 @@ pwms = []
 max_time = 20
 max_data_points = 40
 width = 40
-xB = 340  # Posición del punto de referencia donde empieza el tubo, asi ya no se pierde donde debe estar posicionada la camara
+xB = 350  # Posición del punto de referencia donde empieza el tubo, asi ya no se pierde donde debe estar posicionada la camara
 yB = 20
 ser = serial.Serial()
 ser.close()
@@ -92,6 +92,11 @@ def midpoint(ptA, ptB):
 def change_bg():
     global firstFrame
     firstFrame = None #Cuando esta variable es None, dentro de procces_frame lo hace el background
+
+def change_ref():
+    global xB,yB
+    xB = int(ref_x_entry.get())
+    yB = int(ref_y_entry.get())
 
 def zoom_at(img, zoom, coord=None):
     """
@@ -226,7 +231,12 @@ def calcular_PID_hilo():
         errorAnt = error
         time.sleep(0.1)
 
-
+#para acutalizar la posicion actual de la pelota en el label
+def update_ball_pos_label():
+    if len(positions)>0:
+        new_text = "POS: "+str(positions[-1])
+        ball_pos_label.config(text=new_text)
+    ball_pos_label.after(100,update_ball_pos_label)
 # Crear la ventana principal (interfaz)
 
 # Actualiza la grafica
@@ -385,6 +395,20 @@ kd_entry = ttk.Entry(header_frame, width=5)
 kd_entry.insert(0, "0")
 kd_entry.pack(side=tk.LEFT, padx=5)
 
+ref_x_label = ttk.Label(header_frame, text="Ref. X: ")
+ref_x_label.place(x=900,y=10)
+ref_x_entry = ttk.Entry(header_frame,width=5)
+ref_x_entry.insert(0,xB)
+ref_x_entry.place(x=940,y=10)
+ref_y_label = ttk.Label(header_frame, text="Pos. Y: ")
+ref_y_label.place(x=980,y=10)
+ref_y_entry = ttk.Entry(header_frame,width=5)
+ref_y_entry.insert(0,yB)
+ref_y_entry.place(x=1020,y=10)
+
+change_ref_button = ttk.Button(header_frame, text="Actualizar REF.", command=change_ref)
+change_ref_button.place(x=1060,y=10)
+
 pid_button = ttk.Button(header_frame, text="Actualizar PID", command=set_pid_values)
 pid_button.pack(side=tk.LEFT, padx=5)
 
@@ -399,6 +423,9 @@ status_label.pack(side=tk.LEFT, padx=5)
 
 com_label = ttk.Label(header_frame, text="COMS:")
 com_label.pack(side=tk.LEFT, padx=5)
+
+ball_pos_label = ttk.Label(header_frame,text="POS: ")
+ball_pos_label.place(x=10,y=10)
 
 com_list = ttk.Combobox(state="readonly")
 com_list.place(x=860, y=50)
