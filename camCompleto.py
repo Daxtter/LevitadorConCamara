@@ -44,7 +44,7 @@ error = 0
 errorAcum = 0  # error
 errorAnt = 0
 Dist = 300  # distancia de pelota a techo
-distD = 100  # distancia deseada
+distD = 150  # distancia deseada
 muestrasD = np.zeros(20)
 count = 0
 # Variable global para el frame actual
@@ -135,7 +135,7 @@ def set_setpoint():
 
 
 def ingresarEnMuestras(dato):  # agregar a un areglo de valores distancia
-    global count
+    global count,muestrasD
     muestrasD[count] = dato
     if count == 19:
         count = 0
@@ -143,6 +143,7 @@ def ingresarEnMuestras(dato):  # agregar a un areglo de valores distancia
 
 
 def promedio():  # sacar promedio de 20 valores distancia
+    global muestrasD
     sum = 0
     for valor in muestrasD:
         sum = sum + valor
@@ -186,12 +187,13 @@ def calcular_PID_funcion(Dist):
             if(errorAcum < -100000):
                 errorAcum =-100000
             else:
-                if (errorAcumAnt < (errorAcum + 1) & & errorAcumAnt > (errorAcum - 1)):
-                    contador2 = contador2 + 1;
-                    if (contador2 > 60):
-                        errorAcum = 0
-                else:
-                contador2=0
+                #if (errorAcumAnt < (errorAcum + 1) & & errorAcumAnt > (errorAcum - 1)):
+                #    contador2 = contador2 + 1;
+                #    if (contador2 > 60):
+                #        errorAcum = 0
+                #else:
+                #contador2=0
+                pass
 
         ser.write(BytesValue)
 
@@ -364,7 +366,7 @@ title_label.pack(pady=5)
 setpoint_label = ttk.Label(header_frame, text="Setpoint (mm):")
 setpoint_label.pack(side=tk.LEFT, padx=5)
 setpoint_entry = ttk.Entry(header_frame, width=5)
-setpoint_entry.insert(0, "100")
+setpoint_entry.insert(0, "150")
 setpoint_entry.pack(side=tk.LEFT, padx=5)
 
 kp_label = ttk.Label(header_frame, text="Kp:")
