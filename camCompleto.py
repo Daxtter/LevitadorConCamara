@@ -255,11 +255,10 @@ def update_graph():
     current_time = time.time()
     times = [(t - start_time) for t in np.linspace(start_time, current_time, len(positions))]
     line_pos.set_data(times, positions)
-    if len(positions) > max_data_points:
-        positions.pop(0)
     if (current_time - start_time > max_time):
-        start_time = current_time
-        times.pop(0)
+       start_time = current_time
+       positions.clear()
+       times.clear()
 
     ax.relim()
     ax.autoscale_view()
@@ -270,7 +269,7 @@ def update_graph():
 def process_frame(frame):
     global firstFrame, current_frame, positions, Dist, contornoMinimo, contornoMaximo
     frame = vs.read()
-    frame = zoom_at(frame, 1.80, None)
+    frame = zoom_at(frame, 1.80,(640,480))
     frame = frame
     # resize the frame, convert it to grayscale, and blur it
     frame = imutils.resize(frame, width=frame_width)
@@ -323,6 +322,8 @@ def process_frame(frame):
         Dist = dist.euclidean((xA, yA), (xB, yB)) / refObj[2]
         calcular_PID_funcion(Dist) #manda a llamar al PID
         positions.append(round(Dist))
+        if len(positions) > max_data_points:
+            positions.pop(0)
 
         (mX, mY) = midpoint((xA, yA), (xB, yB))
         cv2.putText(frame, "{:.1f}mm".format(Dist), (int(mX), int(mY - 10)),
@@ -479,7 +480,7 @@ grafica_thread.daemon = True
 #PID_thread.daemon = True
 
 # Inicializar la cámara
-vs = VideoStream(src=3).start()  # Tamano imagen 1280.0 x 720.0
+vs = VideoStream(src=1).start()  # Tamano imagen 1280.0 x 720.0
 time.sleep(2.0)
 # Variables para que funcione el entorno
 firstFrame = None
