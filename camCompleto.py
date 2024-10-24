@@ -20,20 +20,28 @@ from imutils import perspective #la perspectiva es muy importante para percibir.
 import serial.tools
 import serial.tools.list_ports
 import sys
+
+#variables control camara
+zoom_percent = 180 #180 
+zoom_x = 640
+zoom_y = 480
+
 # Variables globales
 positions = []
 times = []
 pwms = []
-max_time = 20
+max_time = 20 #tiempo maximo en grafica
 max_data_points = 40
 width = 40
 xB = 350  # Posición del punto de referencia donde empieza el tubo, asi ya no se pierde donde debe estar posicionada la camara
 yB = 20
-ser = serial.Serial()
+ser = serial.Serial() #para comunicacion serial
 ser.close()
-com_names = []
+
+com_names = [] #para los COM disponibles
 setpoint = 0
 start_time = time.time()
+
 #Para saber si se puede enviar el PID
 hayComunicacion = False
 # variables PID
@@ -53,6 +61,7 @@ Dist = 300  # distancia de pelota a techo
 distD = 150  # distancia deseada
 muestrasD = np.zeros(20)
 count = 0
+
 # Variable global para el frame actual
 current_frame = None
 
@@ -72,7 +81,6 @@ def find_coms():
         com_names.append(com.name)
     com_list['values'] = com_names
 
-
 def com_micro():
     global hayComunicacion
     # Configurar la comunicación serie con Arduino
@@ -91,7 +99,6 @@ def com_micro():
 
     time.sleep(2)
 
-
 def midpoint(ptA, ptB):
     return ((ptA[0] + ptB[0]) * 0.5, (ptA[1] + ptB[1]) * 0.5)
 
@@ -104,6 +111,15 @@ def change_ref():
     xB = int(ref_x_entry.get())
     yB = int(ref_y_entry.get())
 
+def change_zoom():
+    global zoom_percent,zoom_x,zoom_y
+    zoom_percent=int(zoom_per_entry.get())
+    zoom_x=float(zoom_x_entry.get())
+    zoom_y=float(zoom_y_entry.get())
+    change_bg() #para evitar error
+    
+    
+
 def zoom_at(img, zoom, coord=None):
     """
     Simple image zooming without boundary checking.
@@ -113,21 +129,29 @@ def zoom_at(img, zoom, coord=None):
     zoom: float
     coord: (float, float)
     """
-    # Translate to zoomed coordinates
-    h, w, _ = [zoom * i for i in img.shape]
+    zoom = float(zoom/100)
+    h, w, _ = img.shape
+    new_h, new_w = int(zoom * h), int(zoom * w)
 
     if coord is None:
-        cx, cy = w / 2, h / 2
+        cx, cy = new_w // 2, new_h // 2
     else:
-        cx, cy = [zoom * c for c in coord]
+        cx, cy = int(zoom * coord[0]), int(zoom * coord[1])
 
-    img = cv2.resize(img, (0, 0), fx=zoom, fy=zoom)
-    img = img[int(round(cy - h / zoom * .5)): int(round(cy + h / zoom * .5)),
-          int(round(cx - w / zoom * .5)): int(round(cx + w / zoom * .5)),
-    :]  # ROI
+    # Redimensionar la imagen
+    img = cv2.resize(img, (new_w, new_h))
 
-    return img
+    # Asegurarse de que las coordenadas estén dentro del tamaño de la imagen
+    cx = max(0, min(cx, new_w - 1))
+    cy = max(0, min(cy, new_h - 1))
 
+    # Calcular los límites de recorte
+    x1 = max(0, cx - w // 2)
+    y1 = max(0, cy - h // 2)
+    x2 = min(new_w, cx + w // 2)
+    y2 = min(new_h, cy + h // 2)
+
+    return img[y1:y2, x1:x2]
 
 # Funciones para actualizar setpoint y PID, el setpoint es la distancia entre la pelota y el punto de referencia, entre mas alto el
 # setpoint mas distancia hay entre la pelota y la referencia.
@@ -137,13 +161,11 @@ def set_pid_values():
     ki = float(ki_entry.get())
     kd = float(kd_entry.get())
 
-
 def set_setpoint():
     global distD
     setpoint = int(setpoint_entry.get())
     line_ref.set_ydata([setpoint])
     distD = setpoint
-
 
 def ingresarEnMuestras(dato):  # agregar a un areglo de valores distancia
     global count,muestrasD
@@ -152,14 +174,12 @@ def ingresarEnMuestras(dato):  # agregar a un areglo de valores distancia
         count = 0
     count += 1
 
-
 def promedio():  # sacar promedio de 20 valores distancia
     global muestrasD
     sum = 0
     for valor in muestrasD:
         sum = sum + valor
     return sum / 20
-
 
 def map_range(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
@@ -209,8 +229,6 @@ def calcular_PID_funcion(Dist):
         errorAcumAnt = errorAcum
         errorAnt = error;
         ser.write(BytesValue)
-
-
 
 def calcular_PID_hilo():
     global error, errorAnt, errorAcum, distD, distP, Dist, hayComunicacion
@@ -264,12 +282,11 @@ def update_graph():
     ax.autoscale_view()
     canvas.draw()
 
-
 # Función para procesar la imagen y detectar la pelota
 def process_frame(frame):
     global firstFrame, current_frame, positions, Dist, contornoMinimo, contornoMaximo
     frame = vs.read()
-    frame = zoom_at(frame, 1.80,(640,480))
+    frame = zoom_at(frame, zoom_percent,(zoom_x,zoom_y))
     frame = frame
     # resize the frame, convert it to grayscale, and blur it
     frame = imutils.resize(frame, width=frame_width)
@@ -282,7 +299,17 @@ def process_frame(frame):
     if firstFrame is None:
         firstFrame = gray
         return
+    
+     # Asegurarse de que firstFrame también sea en escala de grises
+    if firstFrame is not None and len(firstFrame.shape) == 3:
+        firstFrame = cv2.cvtColor(firstFrame, cv2.COLOR_BGR2GRAY)
+
+    # Asegurarse de que ambas imágenes tengan el mismo tamaño
+    if firstFrame is not None and (firstFrame.shape != gray.shape):
+        gray = cv2.resize(gray, (firstFrame.shape[1], firstFrame.shape[0]))
+        
     frameDelta = cv2.absdiff(firstFrame, gray)
+    
     thresh = cv2.threshold(frameDelta, 43, 255, cv2.THRESH_BINARY)[1]  # Posible a cambiar nivel chido 30
     # dilate the thresholded image to fill in holes, then find contours
     # on thresholded image
@@ -338,7 +365,6 @@ def process_frame(frame):
 
     # Función para capturar video, se esta haciendo en otro hilo
 
-
 def video_capture():
     global current_frame
     while True:
@@ -351,7 +377,6 @@ def video_capture():
             # Hacerle resize para que entre
 
             root.after(0, actualizar_label, img)
-
 
 def cargar_datos():
     while True:
@@ -411,11 +436,33 @@ ref_x_label.place(x=900,y=10)
 ref_x_entry = ttk.Entry(header_frame,width=5)
 ref_x_entry.insert(0,xB)
 ref_x_entry.place(x=940,y=10)
+
 ref_y_label = ttk.Label(header_frame, text="Pos. Y: ")
 ref_y_label.place(x=980,y=10)
 ref_y_entry = ttk.Entry(header_frame,width=5)
 ref_y_entry.insert(0,yB)
 ref_y_entry.place(x=1020,y=10)
+
+zoom_per_label = ttk.Label(header_frame, text="Zoom %")
+zoom_per_label.place(x=120,y=10)
+zoom_per_entry = ttk.Entry(header_frame,width=5)
+zoom_per_entry.insert(0,zoom_percent)
+zoom_per_entry.place(x=175,y=10)
+
+zoom_x_label = ttk.Label(header_frame, text="Zoom X:")
+zoom_x_label.place(x=230,y=10)
+zoom_x_entry = ttk.Entry(header_frame,width=5)
+zoom_x_entry.insert(0,zoom_x)
+zoom_x_entry.place(x=285,y=10)
+
+zoom_y_label = ttk.Label(header_frame, text="Zoom Y:")
+zoom_y_label.place(x=340,y=10)
+zoom_y_entry = ttk.Entry(header_frame,width=5)
+zoom_y_entry.insert(0,zoom_y)
+zoom_y_entry.place(x=395,y=10)
+
+change_zoom_button = ttk.Button(header_frame, text="Actualizar Zoom",command=change_zoom)
+change_zoom_button.place(x=440,y=10)
 
 change_ref_button = ttk.Button(header_frame, text="Actualizar REF.", command=change_ref)
 change_ref_button.place(x=1060,y=10)
@@ -480,7 +527,7 @@ grafica_thread.daemon = True
 #PID_thread.daemon = True
 
 # Inicializar la cámara
-vs = VideoStream(src=1).start()  # Tamano imagen 1280.0 x 720.0
+vs = VideoStream(src=0).start()  # Tamano imagen 1280.0 x 720.0
 time.sleep(2.0)
 # Variables para que funcione el entorno
 firstFrame = None
