@@ -22,7 +22,7 @@ import serial.tools.list_ports
 import sys
 
 #variables control camara
-zoom_percent = 180 #180 
+zoom_percent = 180 #180
 zoom_x = 640
 zoom_y = 480
 
@@ -53,7 +53,7 @@ error = 0
 errorAcum = 0  # error
 errorAnt = 0
 tiempoActual=time.time() #Para el KD
-perido = 50#ms de espera
+periodo = 50/1000# 50 ms de espera
 contadorDePocoCambio = 0;
 errorAcumAnt = 0;
 
@@ -68,8 +68,10 @@ current_frame = None
 #Para cerrar esta cochinada
 def on_close():
     if ser.is_open:
-        ser.write(0)
-        time.sleep(1)
+        salida = 0
+        BytesValue = salida.to_bytes(2, "little")
+        ser.write(BytesValue)
+        time.sleep(2)
         ser.close()
     vs.stop()
     root.after(100,root.destroy)
@@ -117,8 +119,8 @@ def change_zoom():
     zoom_x=float(zoom_x_entry.get())
     zoom_y=float(zoom_y_entry.get())
     change_bg() #para evitar error
-    
-    
+
+
 
 def zoom_at(img, zoom, coord=None):
     """
@@ -185,30 +187,33 @@ def map_range(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
 
 def calcular_PID_funcion(Dist):
-    global error, errorAnt, errorAcum, distD, distP, hayComunicacion, tiempoActual,perido,contadorDePocoCambio, errorAcumAnt
+    global error, errorAnt, errorAcum, distD, distP, hayComunicacion, tiempoActual,periodo,contadorDePocoCambio, errorAcumAnt
     #Si hay comunicacion quiere decir que ya hay comunicacion con el atmega
     #Si no hay entonces el programa todavia no se ah practicamente iniciado
-    if hayComunicacion and (time.time() > (tiempoActual+perido)):
+    #todo: falta investigar sobre el time.time() nose que regresa
+    if hayComunicacion and (time.time() > (tiempoActual+periodo)) :
         ingresarEnMuestras(Dist)
         distP = promedio()
         error = distP - distD
         P = kp * error
-        dt_error = (error - errorAnt)#/perido #Todavia no estoy seguro que se deba dividir
+        dt_error = (error - errorAnt)/periodo #Todavia no estoy seguro que se deba dividir
         D = kd * dt_error
-        errorAcum = errorAcum + error
+        errorAcum = errorAcum + error * periodo
         I = ki * errorAcum
         PID = P + I + D
         print("P: ", P)
         print("I: ", I)
         print("D: ", D)
-        if PID < -65535:
-            PID = -65535
+        if PID < 0:
+            PID = 0
         if PID > 65535:
             PID = 65535
-        PID = round(map_range(PID, -65535, 65535, 0, 65535))
+        #PID = round(map_range(PID, -300, 300, 0, 65535))
         print("PWM: ", PID)
         print("Error acumulado", errorAcum)
         BytesValue = PID.to_bytes(2, "little")  # se convierte en un byte (tipo de dato de 8 bits, abarca el rango del
+        ser.write(BytesValue)
+
         # PWM, que es 0-65535
 
         # Windeup
@@ -228,7 +233,6 @@ def calcular_PID_funcion(Dist):
                 pass
         errorAcumAnt = errorAcum
         errorAnt = error;
-        ser.write(BytesValue)
 
 def calcular_PID_hilo():
     global error, errorAnt, errorAcum, distD, distP, Dist, hayComunicacion
@@ -282,6 +286,7 @@ def update_graph():
     ax.autoscale_view()
     canvas.draw()
 
+
 # Función para procesar la imagen y detectar la pelota
 def process_frame(frame):
     global firstFrame, current_frame, positions, Dist, contornoMinimo, contornoMaximo
@@ -299,7 +304,7 @@ def process_frame(frame):
     if firstFrame is None:
         firstFrame = gray
         return
-    
+
      # Asegurarse de que firstFrame también sea en escala de grises
     if firstFrame is not None and len(firstFrame.shape) == 3:
         firstFrame = cv2.cvtColor(firstFrame, cv2.COLOR_BGR2GRAY)
@@ -307,9 +312,9 @@ def process_frame(frame):
     # Asegurarse de que ambas imágenes tengan el mismo tamaño
     if firstFrame is not None and (firstFrame.shape != gray.shape):
         gray = cv2.resize(gray, (firstFrame.shape[1], firstFrame.shape[0]))
-        
+
     frameDelta = cv2.absdiff(firstFrame, gray)
-    
+
     thresh = cv2.threshold(frameDelta, 43, 255, cv2.THRESH_BINARY)[1]  # Posible a cambiar nivel chido 30
     # dilate the thresholded image to fill in holes, then find contours
     # on thresholded image
@@ -318,7 +323,7 @@ def process_frame(frame):
     cnts = imutils.grab_contours(cnts)
 
     #manda a llamar al PID si no hay contornos
-    if len(cnts) ==0 :
+    if len(cnts) ==0:
         calcular_PID_funcion(305)
         positions.append(305)
     # loop over the contours
@@ -378,10 +383,14 @@ def video_capture():
 
             root.after(0, actualizar_label, img)
 
+
 def cargar_datos():
     while True:
-        root.after(0, update_graph())
-        time.sleep(0.1)
+        try:
+            root.after(0, update_graph())
+            time.sleep(0.1)
+        except:
+            print("No se pudo graficar datos")
     # cleanup the camera and close any open windows
 
 
@@ -527,7 +536,7 @@ grafica_thread.daemon = True
 #PID_thread.daemon = True
 
 # Inicializar la cámara
-vs = VideoStream(src=0).start()  # Tamano imagen 1280.0 x 720.0
+vs = VideoStream(src=2).start()  # Tamano imagen 1280.0 x 720.0
 time.sleep(2.0)
 # Variables para que funcione el entorno
 firstFrame = None
