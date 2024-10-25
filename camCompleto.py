@@ -53,7 +53,7 @@ error = 0
 errorAcum = 0  # error
 errorAnt = 0
 tiempoActual=time.time() #Para el KD
-periodo = 50/1000# 50 ms de espera
+periodo = 17/1000# 17 ms de espera
 contadorDePocoCambio = 0;
 errorAcumAnt = 0;
 
@@ -190,27 +190,31 @@ def calcular_PID_funcion(Dist):
     global error, errorAnt, errorAcum, distD, distP, hayComunicacion, tiempoActual,periodo,contadorDePocoCambio, errorAcumAnt
     #Si hay comunicacion quiere decir que ya hay comunicacion con el atmega
     #Si no hay entonces el programa todavia no se ah practicamente iniciado
-    #todo: falta investigar sobre el time.time() nose que regresa
-    if hayComunicacion and (time.time() > (tiempoActual+periodo)) :
+    #done: falta investigar sobre el time.time() nose que regresa
+    #and (time.time() > (tiempoActual+periodo))
+    if hayComunicacion  :
         ingresarEnMuestras(Dist)
         distP = promedio()
-        error = distP - distD
+        error = distD-distP
         P = kp * error
         dt_error = (error - errorAnt)/periodo #Todavia no estoy seguro que se deba dividir
         D = kd * dt_error
-        errorAcum = errorAcum + error * periodo
+        errorAcum = errorAcum + (error * periodo)
         I = ki * errorAcum
+        # ki*error +errorAcum
+        #ki * (error+errorAcum)
         PID = P + I + D
-        print("P: ", P)
-        print("I: ", I)
-        print("D: ", D)
-        if PID < 0:
-            PID = 0
+        print("P: ", P, " kp:", kp)
+        print("I: ", I," ki:" ,ki)
+        print("D: ", D, "kd:", kd)
+        if PID <-65535:
+            PID = -65535
         if PID > 65535:
             PID = 65535
-        #PID = round(map_range(PID, -300, 300, 0, 65535))
+        PID = round(map_range(PID, -65535, 65535, 0, 65535))
         print("PWM: ", PID)
         print("Error acumulado", errorAcum)
+        #PID = int(PID)
         BytesValue = PID.to_bytes(2, "little")  # se convierte en un byte (tipo de dato de 8 bits, abarca el rango del
         ser.write(BytesValue)
 
@@ -222,15 +226,15 @@ def calcular_PID_funcion(Dist):
         else:
             if(errorAcum < -150000):
                 errorAcum =-100000
-            else:
+            #else:
                 # Se usa de 10 en 10 porque nuestro PID toma valores muy gradnes porque asi es nuestro PWM
-                if (errorAcumAnt < (errorAcum + 10) and errorAcumAnt > (errorAcum - 10)):
-                    contadorDePocoCambio = contadorDePocoCambio + 1
-                    if contadorDePocoCambio>60: # Aqui esta diciendo que si por mas de 60 contadores que es decor son 60 * 50ms = 3s
-                        errorAcum = 0           # Entonces significa que esta muy cerca de la referencia entonces se debe indicar a 0
-                else:
-                    contadorDePocoCambio=0
-                pass
+                #if (errorAcumAnt < (errorAcum + 10) and errorAcumAnt > (errorAcum - 10)):
+                    #contadorDePocoCambio = contadorDePocoCambio + 1
+                    #if contadorDePocoCambio>60: # Aqui esta diciendo que si por mas de 60 contadores que es decor son 60 * 50ms = 3s
+                    #    errorAcum = 0           # Entonces significa que esta muy cerca de la referencia entonces se debe indicar a 0
+                #else:
+                #    contadorDePocoCambio=0
+                #pass
         errorAcumAnt = errorAcum
         errorAnt = error;
 
@@ -324,8 +328,8 @@ def process_frame(frame):
 
     #manda a llamar al PID si no hay contornos
     if len(cnts) ==0:
-        calcular_PID_funcion(305)
-        positions.append(305)
+        calcular_PID_funcion(0)
+        positions.append(0)
     # loop over the contours
     for c in cnts:
         # if the contour is too small, ignore it
